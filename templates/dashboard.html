@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Transaction Monitor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .header {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .status-card {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .status-card h3 {
+            margin: 0 0 10px 0;
+            color: #495057;
+        }
+        .status-card .count {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .alert {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border: 1px solid #f5c6cb;
+        }
+        .success {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border: 1px solid #c3e6cb;
+        }
+        .transactions-list {
+            max-height: 300px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .transaction-item {
+            background: white;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007bff;
+        }
+        .failed { border-left-color: #dc3545; }
+        .denied { border-left-color: #fd7e14; }
+        .reversed { border-left-color: #ffc107; }
+        .approved { border-left-color: #28a745; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 Simple Transaction Monitor</h1>
+            <p>Real-time monitoring for transaction anomalies</p>
+        </div>
+
+        <!-- Test Section -->
+        <div class="test-section">
+            <h2>🧪 Test Transaction Monitoring</h2>
+            <p>Click buttons to send test transactions and see alerts:</p>
+            
+            <button onclick="sendTransaction('approved', 120)">✅ Normal Approved (120)</button>
+            <button onclick="sendTransaction('approved', 50)">⚠️ Low Approved (50)</button>
+            <button onclick="sendTransaction('approved', 200)">📈 High Approved (200)</button>
+            <br>
+            <button onclick="sendTransaction('failed', 8)">🚨 High Failed (8)</button>
+            <button onclick="sendTransaction('denied', 15)">🚨 High Denied (15)</button>
+            <button onclick="sendTransaction('reversed', 8)">🔄 High Reversed (8)</button>
+            
+            <div id="test-result"></div>
+        </div>
+
+        <!-- Status Overview -->
+        <div class="test-section">
+            <h2>📊 Transaction Status Overview</h2>
+            <div class="status-grid" id="status-grid">
+                <div class="status-card">
+                    <h3>Approved</h3>
+                    <div class="count" id="approved-count">0</div>
+                </div>
+                <div class="status-card">
+                    <h3>Failed</h3>
+                    <div class="count" id="failed-count">0</div>
+                </div>
+                <div class="status-card">
+                    <h3>Denied</h3>
+                    <div class="count" id="denied-count">0</div>
+                </div>
+                <div class="status-card">
+                    <h3>Reversed</h3>
+                    <div class="count" id="reversed-count">0</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="test-section">
+            <h2>📋 Recent Transactions</h2>
+            <div class="transactions-list" id="transactions-list">
+                <p>No transactions yet. Send some test data above!</p>
+            </div>
+        </div>
+
+        <!-- System Info -->
+        <div class="test-section">
+            <h2>⚙️ System Information</h2>
+            <p><strong>Alert Thresholds:</strong></p>
+            <ul>
+                <li>Failed transactions: Alert if > 5</li>
+                <li>Denied transactions: Alert if > 10</li>
+                <li>Reversed transactions: Alert if > 5</li>
+                <li>Approved transactions: Alert if < 90 or > 150</li>
+            </ul>
+            <p><strong>API Endpoint:</strong> <code>POST /api/transaction</code></p>
+            <p><strong>Health Check:</strong> <code>GET /api/health</code></p>
+        </div>
+    </div>
+
+    <script>
+        // Send test transaction
+        async function sendTransaction(status, count) {
+            const transaction = {
+                timestamp: new Date().toISOString(),
+                status: status,
+                count: count
+            };
+
+            try {
+                const response = await fetch('/api/transaction', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(transaction)
+                });
+
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    document.getElementById('test-result').innerHTML = 
+                        `<div class="success">✅ Transaction sent successfully! Anomalies found: ${result.anomalies_found}</div>`;
+                } else {
+                    document.getElementById('test-result').innerHTML = 
+                        `<div class="alert">❌ Error: ${result.error}</div>`;
+                }
+
+                // Update dashboard
+                updateDashboard();
+                
+            } catch (error) {
+                document.getElementById('test-result').innerHTML = 
+                    `<div class="alert">❌ Error: ${error.message}</div>`;
+            }
+        }
+
+        // Update dashboard data
+        async function updateDashboard() {
+            try {
+                // Get transactions
+                const response = await fetch('/api/transactions');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    updateTransactionsList(data.data);
+                }
+
+                // Get stats
+                const statsResponse = await fetch('/api/stats');
+                const stats = await statsResponse.json();
+                
+                if (stats.status_counts) {
+                    updateStatusCounts(stats.status_counts);
+                }
+                
+            } catch (error) {
+                console.error('Error updating dashboard:', error);
+            }
+        }
+
+        // Update status counts
+        function updateStatusCounts(statusCounts) {
+            document.getElementById('approved-count').textContent = statusCounts.approved || 0;
+            document.getElementById('failed-count').textContent = statusCounts.failed || 0;
+            document.getElementById('denied-count').textContent = statusCounts.denied || 0;
+            document.getElementById('reversed-count').textContent = statusCounts.reversed || 0;
+        }
+
+        // Update transactions list
+        function updateTransactionsList(transactions) {
+            const container = document.getElementById('transactions-list');
+            
+            if (transactions.length === 0) {
+                container.innerHTML = '<p>No transactions yet. Send some test data above!</p>';
+                return;
+            }
+
+            let html = '';
+            transactions.reverse().forEach(t => {
+                const time = new Date(t.timestamp).toLocaleTimeString();
+                html += `
+                    <div class="transaction-item ${t.status}">
+                        <strong>${t.status.toUpperCase()}</strong> - ${t.count} transactions
+                        <br><small>${time}</small>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // Auto-refresh dashboard every 5 seconds
+        setInterval(updateDashboard, 5000);
+
+        // Initial load
+        updateDashboard();
+    </script>
+</body>
+</html> 
